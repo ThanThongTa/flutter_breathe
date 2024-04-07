@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
+// ein paar App weite Konstante
 class Settings {
   static double defaultCircleRadius = 16.66.w;
   static Color defaultThemeColor = Colors.indigo;

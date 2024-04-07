@@ -1,18 +1,21 @@
 // übernimmt das Speichern und Laden der Presets aus Hive
 import 'package:breathe/datamodels/circle_phase.dart';
+import 'package:breathe/interfaces/presets_controller.dart';
 import 'package:breathe/datamodels/preset.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 // der Controller für die Hive Boxen
-class PresetHiveController {
+class PresetHiveController implements PresetsController {
   // Die Namen der Hive Boxen, statisch, um Rechtschreibfehler
   // und ähnliches in den verschiedenen Klassen zu vermeiden
   static const hiveBoxKey = "AnimationPresets";
   static const startingPresetKey = "StartingPreset";
 
   // Variablen, um Daten aus den Hive Boxen zu speichern
+  @override
   List animationPresets = [];
-  late Preset startingPreset;
+  @override
+  late Preset? startingPreset;
 
   // Default Constructor
   PresetHiveController();
@@ -21,7 +24,8 @@ class PresetHiveController {
   var meinePresetsBox = Hive.box(hiveBoxKey);
   var startingPresetBox = Hive.box(startingPresetKey);
 
-  initState() {
+  @override
+  void initState() {
     // versuche Daten aus der Hive Box zu lesen. Wenn keine vorhanden sind,
     // erstelle die Initialdaten, und speichere sie in die Hive Box
     if (meinePresetsBox.get(PresetHiveController.hiveBoxKey) == null) {
@@ -36,6 +40,27 @@ class PresetHiveController {
     // in jedem Fall lade die Daten aus der Hive Box
     loadPresetsFromHive();
     loadStartingPresetFromHive();
+  }
+
+  @override
+  List initPresets(String? presetKey) {
+    if (meinePresetsBox.get(PresetHiveController.hiveBoxKey) == null) {
+      createInitialData();
+      updatePresetsInHive();
+      updateStartingPresetInHive();
+      loadPresetsFromHive();
+      loadStartingPresetFromHive();
+    }
+
+    var temp = meinePresetsBox.get(PresetHiveController.hiveBoxKey);
+    // falls die Box immer noch nicht geladen werden
+    // nimm einfach die Liste aus dem Controller
+    if (temp == null || temp.isEmpty) {
+      return animationPresets;
+    } else {
+      // ansonsten nehme die Liste aus der Hive Box
+      return temp;
+    }
   }
 
   // Initialdaten für die Hive-Box
@@ -132,15 +157,17 @@ class PresetHiveController {
           selectedBreathSpeedBeforeRetention: 5,
           key: 'preset_10'),
     ];
-    startingPreset = animationPresets.first;
+    // startingPreset = animationPresets.first;
   }
 
   // Presets aus der Hive-Box laden
+  @override
   void loadPresetsFromHive() {
     animationPresets = meinePresetsBox.get(hiveBoxKey) ?? [];
   }
 
   // Presets in die Hive-Box speichern
+  @override
   void updatePresetsInHive() {
     meinePresetsBox.put(hiveBoxKey, animationPresets);
   }
@@ -149,12 +176,13 @@ class PresetHiveController {
   void loadStartingPresetFromHive() {
     var temp = startingPresetBox.get(startingPresetKey);
     // wenn bereits ein Start-Preset in der Hive Box gespeichert wurde
-    if (temp != null) {
+    if (temp is Preset) {
       startingPreset = temp;
     } else {
       // wenn noch kein Start-Preset gespeichert wurde, lade das erste
       // aus den Animation-Presets
-      startingPreset = animationPresets.first;
+      startingPreset =
+          animationPresets.firstWhere((element) => element.key is String);
     }
   }
 

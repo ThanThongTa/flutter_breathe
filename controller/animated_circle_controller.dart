@@ -1,10 +1,12 @@
 import 'package:breathe/datamodels/preset.dart';
 import 'package:breathe/datamodels/circle_phase.dart';
 import 'package:breathe/datamodels/settings.dart';
+import 'package:breathe/interfaces/breathing_animation_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-class AnimatedCircleController {
+// Klasse zum Verwalten der Kreis Animation
+class AnimatedCircleController extends BreathingAnimationController {
   // der Animation Controller startet unter anderem die Animation
   // und kontrolliert die Gesamtdauer
   late AnimationController _animationController;
@@ -17,28 +19,23 @@ class AnimatedCircleController {
   AnimatedCircleController();
 
   // Initiiert den AnimationController mit der berechneten Gesamtdauer der Animation
-  void initState({required TickerProvider ticker, required Preset preset}) {
+  void initState({required TickerProvider ticker, Preset? preset}) {
     activePreset = preset;
     _animationController = AnimationController(
       duration: Duration(seconds: getCurrentTotalDurationTime()),
-      // vsync erwartet einen TickerProvider. Daher das
-      // SingleTickerProviderStateMixin / aus dem TickerProvider
+      // vsync erwartet einen TickerProvider
       vsync: ticker,
     );
   }
 
-  // aktualisiert das aktive Preset
+  // aktualisiert das aktive Preset und auch die Gesamtdauer der Animation
   void updatePreset({required TickerProvider ticker, required Preset preset}) {
     activePreset = preset;
-    _animationController = AnimationController(
-      duration: Duration(seconds: getCurrentTotalDurationTime()),
-      // vsync erwartet einen TickerProvider. Daher das
-      // SingleTickerProviderStateMixin / aus dem TickerProvider
-      vsync: ticker,
-    );
+    _animationController.duration =
+        Duration(seconds: getCurrentTotalDurationTime());
   }
 
-// startet und wiederholt dann die Animation
+// startet und wiederholt die Animation
   void repeat() {
     isRunning = true;
     _animationController.repeat();
@@ -51,8 +48,10 @@ class AnimatedCircleController {
 
   // animiert den wachsenden und schrumpfenden Kreis
   Animation<double> animateCirclePhases() {
-    // aus Übersichtlichkeit in zwei Zeilen
+    // erstellt eine Liste von TweenSequenceItems für das aktuelle Preset
     List<TweenSequenceItem<double>> items = getCurrentAnimatedCirclePhases();
+    // hängt die Items an den Controller
+    //! ACHTUNG! animate nimmt den PARENT als Parameter
     return TweenSequence(items).animate(_animationController);
   }
 
@@ -69,7 +68,8 @@ class AnimatedCircleController {
   }
 
   // berechnet die Summe der Weight Werte
-  // und verwendet sie als Werte für die Duration der einzelnen Phasen in Sekunden
+  // und verwendet sie als Werte für die Duration der
+  // einzelnen Phasen in Sekunden
   int getTotalDurationTime(List<TweenSequenceItem<double>> items) {
     double durationInSeconds = 0;
     for (var item in items) {
@@ -80,24 +80,37 @@ class AnimatedCircleController {
     return durationInSeconds.toInt();
   }
 
+  // Null Safe Methode, um an die Durations zu kommen
+  Map<CirclePhase, double> getLocalDurations(Preset? preset) {
+    // verwenden von lokalen Variablen für die Type Promotion
+    // damit ich nicht mit ! und ? Null Checks machen muss
+    var activePresetLocal = preset;
+    if (activePresetLocal is Preset) {
+      var durationsLocal = activePresetLocal.durationsInSeconds;
+      if (durationsLocal is Map<CirclePhase, double>) {
+        return durationsLocal;
+      } else {
+        return {};
+      }
+    } else {
+      return {};
+    }
+  }
+
   // ermittelt die gesamte Dauer der Animation für die aktuelle Gesamtanimation
   int getCurrentTotalDurationTime() {
     double sum = 0;
-    if (activePreset != null && activePreset?.durationsInSeconds != null) {
-      for (var element in activePreset!.durationsInSeconds!.entries) {
-        sum += element.value;
-      }
+    for (var element in getLocalDurations(activePreset).entries) {
+      sum += element.value;
     }
+    if (sum == 0) sum = 4; // Wenn es kein active Preset gibt, ist die Dauer 4
     return sum.toInt();
   }
 
-  // ermittelt die Dauer der Animation für eine bestimmte Phase
+  // liest die Dauer der Animation für eine bestimmte Phase aus
+  // gibt 1.0 zurück, falls keine Dauer gefunden werden konnte
   double getDurationInSecondsForPhase({required CirclePhase circlePhase}) {
-    double sum = 1;
-    if (activePreset != null && activePreset?.durationsInSeconds != null) {
-      sum = activePreset!.durationsInSeconds?[circlePhase] ?? 1.0;
-    }
-    return sum;
+    return getLocalDurations(activePreset)[circlePhase] ?? 1.0;
   }
 
   // erstellt eine Liste aus TweenSequenceItems, die woanders zu einer Tween-Sequence

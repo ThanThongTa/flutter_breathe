@@ -1,4 +1,4 @@
-import 'package:breathe/controller/preset_hive_controller.dart';
+import 'package:breathe/interfaces/presets_controller.dart';
 import 'package:breathe/datamodels/circle_phase.dart';
 import 'package:breathe/datamodels/preset.dart';
 import 'package:breathe/viewmodels/edit_breathing_data.dart';
@@ -319,38 +319,42 @@ class EditBreathingCubit extends Cubit<EditBreathingData> {
   // Objekt zurück
   void setDataFromPreset({required Preset preset}) {
     var current = getCurrentData();
-    growingPhaseDurationInSeconds = preset.durationsInSeconds != null &&
-            preset.durationsInSeconds?[CirclePhase.growing] != null
-        ? preset.durationsInSeconds![CirclePhase.growing]!.toInt()
-        : 1;
-    holdInPhaseDurationInSeconds = preset.durationsInSeconds != null &&
-            preset.durationsInSeconds?[CirclePhase.holdIn] != null
-        ? preset.durationsInSeconds![CirclePhase.holdIn]!.toInt()
-        : 1;
-    shrinkingPhaseDurationInSeconds = preset.durationsInSeconds != null &&
-            preset.durationsInSeconds?[CirclePhase.shrinking] != null
-        ? preset.durationsInSeconds![CirclePhase.shrinking]!.toInt()
-        : 1;
-    holdOutPhaseDurationInSeconds = preset.durationsInSeconds != null &&
-            preset.durationsInSeconds?[CirclePhase.holdOut] != null
-        ? preset.durationsInSeconds![CirclePhase.holdOut]!.toInt()
-        : 1;
-    growingPhaseText =
-        preset.texts != null && preset.texts?[CirclePhase.growing] != null
-            ? preset.texts![CirclePhase.growing].toString()
-            : "";
-    holdInPhaseText =
-        preset.texts != null && preset.texts?[CirclePhase.growing] != null
-            ? preset.texts![CirclePhase.holdIn].toString()
-            : "";
-    shrinkingPhaseText =
-        preset.texts != null && preset.texts?[CirclePhase.growing] != null
-            ? preset.texts![CirclePhase.shrinking].toString()
-            : "";
-    holdOutPhaseText =
-        preset.texts != null && preset.texts?[CirclePhase.growing] != null
-            ? preset.texts![CirclePhase.holdOut].toString()
-            : "";
+
+    var durationsLocal = preset.durationsInSeconds;
+    if (durationsLocal is Map<CirclePhase, double>) {
+      var growingLocal = durationsLocal[CirclePhase.growing];
+      var holdInLocal = durationsLocal[CirclePhase.holdIn];
+      var shrinkingLocal = durationsLocal[CirclePhase.shrinking];
+      var holdOutLocal = durationsLocal[CirclePhase.holdOut];
+
+      growingPhaseDurationInSeconds =
+          growingLocal is double ? growingLocal.toInt() : 1;
+      holdInPhaseDurationInSeconds =
+          holdInLocal is double ? holdInLocal.toInt() : 1;
+      shrinkingPhaseDurationInSeconds =
+          shrinkingLocal is double ? shrinkingLocal.toInt() : 1;
+      holdOutPhaseDurationInSeconds =
+          holdOutLocal is double ? holdOutLocal.toInt() : 1;
+    } else {
+      growingPhaseDurationInSeconds = 1;
+      holdInPhaseDurationInSeconds = 1;
+      shrinkingPhaseDurationInSeconds = 1;
+      holdOutPhaseDurationInSeconds = 1;
+    }
+
+    var textsLocal = preset.texts;
+    if (textsLocal is Map<CirclePhase, String>) {
+      growingPhaseText = textsLocal[CirclePhase.growing]!;
+      holdInPhaseText = textsLocal[CirclePhase.holdIn]!;
+      shrinkingPhaseText = textsLocal[CirclePhase.shrinking]!;
+      holdOutPhaseText = textsLocal[CirclePhase.holdOut]!;
+    } else {
+      growingPhaseText = "";
+      holdInPhaseText = "";
+      shrinkingPhaseText = "";
+      holdOutPhaseText = "";
+    }
+
     showTexts = preset.showTexts;
     showCount = preset.showCount;
     skipHolds = preset.skipHolds;
@@ -358,6 +362,7 @@ class EditBreathingCubit extends Cubit<EditBreathingData> {
     isStart = preset.isStart;
     presetNameText = preset.name;
     key = preset.key;
+
     current.growingPhaseDurationInSeconds = growingPhaseDurationInSeconds;
     current.holdInPhaseDurationInSeconds = holdInPhaseDurationInSeconds;
     current.shrinkingPhaseDurationInSeconds = shrinkingPhaseDurationInSeconds;
@@ -382,7 +387,7 @@ class EditBreathingCubit extends Cubit<EditBreathingData> {
   // Erstellt aus den aktuellen Daten dann ein EditBreathingData Objekt
   // und gibt dieses EditBreathingData Objekt an die Screen Klasse
   // zurück
-  void saveNewPreset({required PresetHiveController controller}) {
+  void saveNewPreset({required PresetsController controller}) {
     var current = getCurrentData();
     var currentPreset = getPresetFromBreathingData(breathingData: current);
     controller.animationPresets.add(currentPreset);
@@ -397,7 +402,7 @@ class EditBreathingCubit extends Cubit<EditBreathingData> {
   // Falls ein Key vorhanden ist, wird geschaut, ob es auch ein Element
   // mit diesem Key in den Presets gibt. Falls ja, wird das Element aktualisiert.
   // Falls nicht, wird ein neues Preset erstellt
-  void updateExistingPreset({required PresetHiveController controller}) {
+  void updateExistingPreset({required PresetsController controller}) {
     var current = getCurrentData();
     var updatedPreset = getPresetFromBreathingData(breathingData: current);
     var found =
@@ -420,7 +425,7 @@ class EditBreathingCubit extends Cubit<EditBreathingData> {
   }
 
   // Speichere das aktuelle Preset
-  void savePreset({required PresetHiveController controller}) {
+  void savePreset({required PresetsController controller}) {
     if (key == null) {
       // key ist nur null, wenn das Preset neu ist
       saveNewPreset(controller: controller);

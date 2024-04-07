@@ -2,6 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 part 'circle_phase.g.dart';
 
+// Enums der einzelnen Phasen einer Kreis Animation
 @HiveType(typeId: 2)
 enum CirclePhase {
   @HiveField(0)

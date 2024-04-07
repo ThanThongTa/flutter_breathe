@@ -1,4 +1,3 @@
-import 'package:breathe/datamodels/settings.dart';
 import 'package:flutter/material.dart';
 
 // erstellt einen Standard Container als Kreis
@@ -27,7 +26,7 @@ class Circle extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.transparent,
         shape: BoxShape.circle,
-        border: Border.all(color: Settings.defaultThemeColor, width: 2),
+        border: Border.all(color: color, width: 2),
       ),
       child: child,
     );

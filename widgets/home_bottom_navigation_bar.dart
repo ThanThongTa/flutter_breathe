@@ -7,6 +7,10 @@ import 'package:breathe/screens/meditation_timer_screen.dart';
 import 'package:breathe/screens/retention_screen.dart';
 import 'package:flutter/material.dart';
 
+//TODO: Use a navigation rail for wide screen / landscape
+//TODO: Use MediaQuery to check if screen is wide / landscape
+
+// Widget für die BottomNavigationBar im HomeScreen
 class HomeButtonNavigationBar extends StatefulWidget {
   const HomeButtonNavigationBar({super.key});
 
@@ -37,45 +41,37 @@ class _HomeButtonNavigationBarState extends State<HomeButtonNavigationBar> {
     }
 
     // Navigiert zu der NavSeite mit dem Index aus dem Parameter
-    setState(() {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => _navSeiten[index],
-        ),
-      );
-    });
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _navSeiten[index],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      // damit die Labels auch gezeigt werden, wenn
-      // das Item nicht ausgewählt ist
-      showUnselectedLabels: true,
-      // um den Abstand zwischen den Items gleichmäßig
-      // zu halten. Bei vier oder mehr ist shifting
-      // default.
-      type: BottomNavigationBarType.fixed,
-      onTap: (index) => _onItemTapped(index),
-      items: <BottomNavigationBarItem>[
-        BottomNavigationBarItem(
+    return NavigationBar(
+      selectedIndex: 0,
+      onDestinationSelected: (index) => _onItemTapped(index),
+      destinations: [
+        NavigationDestination(
           icon: Icon(Icons.home),
           label: 'Home',
         ),
-        BottomNavigationBarItem(
+        NavigationDestination(
           icon: Icon(Icons.air),
           label: 'Breathing',
         ),
-        BottomNavigationBarItem(
+        NavigationDestination(
           icon: Icon(Icons.timer_outlined),
           label: 'Retention',
         ),
-        BottomNavigationBarItem(
+        NavigationDestination(
           icon: Icon(Icons.spa_outlined),
           label: 'Meditation',
         ),
-        BottomNavigationBarItem(
+        NavigationDestination(
           icon: Icon(Icons.favorite_border_rounded),
           label: 'Favorites',
         ),

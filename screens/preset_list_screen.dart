@@ -9,8 +9,12 @@ import 'package:breathe/pages/play_breathing_page.dart';
 import 'package:breathe/viewmodels/preset_list_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:sizer/sizer.dart';
+
+//TODO: Use SegmentedButton to choose between presets and meditations
+//TODO: Use SegmentedButton to choose between different retention presets
 
 // Auf dem Preset List Screen werden alle Presets aufgelistet.
 
@@ -107,6 +111,16 @@ class _PresetListScreenState extends State<PresetListScreen>
     ),
   );
 
+  bool checkIfPresetHasUniqueKey({required String? presetKey}) {
+    if (presetKey == null || presetKey == "") {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(snackBarWithMissingKeyErrorMessage);
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,83 +137,141 @@ class _PresetListScreenState extends State<PresetListScreen>
                 return Column(
                   children: [
                     // Jedes Preset wird in einer eigenen Row dargestellt
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Container(
-                        color: Settings.secondaryThemeColor,
-                        child: Row(
-                          // in der Reihe gibt es eine SizedBox für den Titel
+                    Visibility(
+                      visible: state.presets[index].key is String,
+                      child: Slidable(
+                        startActionPane: ActionPane(
+                          // A motion is a widget used to control how the pane animates.
+                          motion: const ScrollMotion(),
+                          // All actions are defined in the children parameter.
                           children: [
+                            // A SlidableAction can have an icon and/or a label.
                             SizedBox(
-                              width: 50.w,
-                              child: ListTile(
-                                title: Text(state.presets[index].name),
-                                titleTextStyle: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16.sp,
-                                ),
+                              width: 26.w,
+                              child: SlidableAction(
+                                onPressed: (_) {
+                                  var key = state.presets[index].key;
+                                  if (!checkIfPresetHasUniqueKey(
+                                      presetKey: key)) {
+                                    return;
+                                  }
+
+                                  context
+                                      .read<PresetListCubit>()
+                                      .setFavoriteWithKey(key);
+                                },
+                                backgroundColor: Settings.fourthThemeColor,
+                                foregroundColor: Colors.white,
+                                icon: Icons.favorite_outline_outlined,
+                                label: 'Favorite',
                               ),
                             ),
-                            // und eine SizedBox für die Icons
                             SizedBox(
-                              width: 45.w,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  // Edit Button
-                                  IconButton(
-                                    onPressed: () {
-                                      var key = state.presets[index].key;
-                                      if (key == null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                            snackBarWithMissingKeyErrorMessage);
-                                        return;
-                                      }
+                              width: 22.w,
+                              child: SlidableAction(
+                                onPressed: (_) {
+                                  var key = state.presets[index].key;
+                                  if (!checkIfPresetHasUniqueKey(
+                                      presetKey: key)) {
+                                    return;
+                                  }
 
-                                      navigateToEditBreathingPage(
-                                          presetKey: key);
-                                    },
-                                    icon: Icon(
-                                      Icons.edit,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  // Play Button
-                                  IconButton(
-                                    onPressed: () {
-                                      var key = state.presets[index].key;
-                                      if (key == null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                            snackBarWithMissingKeyErrorMessage);
-                                        return;
-                                      }
-
-                                      navigateToPlayBreathingPage(
-                                          presetKey: key);
-                                    },
-                                    icon: Icon(Icons.play_circle_outline_sharp,
-                                        color: Colors.white),
-                                  ),
-                                  // Delete Button
-                                  IconButton(
-                                    onPressed: () {
-                                      var key = state.presets[index].key;
-                                      if (key == null) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                            snackBarWithMissingKeyErrorMessage);
-                                        return;
-                                      }
-                                      context
-                                          .read<PresetListCubit>()
-                                          .deletePresetWithKey(key);
-                                    },
-                                    icon: Icon(Icons.delete_outline,
-                                        color: Colors.white),
-                                  )
-                                ],
+                                  context
+                                      .read<PresetListCubit>()
+                                      .setStartPresetWithKey(key);
+                                },
+                                backgroundColor: Settings.tertiaryThemeColor,
+                                foregroundColor: Colors.white,
+                                icon: Icons.home_outlined,
+                                label: 'Home',
                               ),
                             ),
                           ],
+                        ),
+                        endActionPane: ActionPane(
+                          // A motion is a widget used to control how the pane animates.
+                          motion: const ScrollMotion(),
+                          // All actions are defined in the children parameter.
+                          children: [
+                            // A SlidableAction can have an icon and/or a label.
+                            SlidableAction(
+                              onPressed: (_) {
+                                var key = state.presets[index].key;
+                                if (!checkIfPresetHasUniqueKey(
+                                    presetKey: key)) {
+                                  return;
+                                }
+
+                                navigateToEditBreathingPage(presetKey: key);
+                              },
+                              backgroundColor: Settings.fifthThemeColor,
+                              foregroundColor: Colors.white,
+                              icon: Icons.edit_outlined,
+                              label: 'Edit',
+                            ),
+                            SlidableAction(
+                              onPressed: (_) {
+                                var key = state.presets[index].key;
+                                if (!checkIfPresetHasUniqueKey(
+                                    presetKey: key)) {
+                                  return;
+                                }
+
+                                context
+                                    .read<PresetListCubit>()
+                                    .deletePresetWithKey(key);
+                              },
+                              backgroundColor: Settings.sixthThemeColor,
+                              foregroundColor: Colors.white,
+                              icon: Icons.delete_outline_outlined,
+                              label: 'Delete',
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6.0),
+                          child: Container(
+                            color: Settings.secondaryThemeColor,
+                            child: Row(
+                              // in der Reihe gibt es eine SizedBox für den Titel
+                              children: [
+                                SizedBox(
+                                  width: 82.w,
+                                  child: ListTile(
+                                    title: Text(state.presets[index].name),
+                                    titleTextStyle: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16.sp,
+                                    ),
+                                  ),
+                                ),
+                                // und eine SizedBox für die Icons
+                                SizedBox(
+                                  width: 12.w,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      // Play Button
+                                      IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed: () {
+                                          var key = state.presets[index].key;
+                                          if (!checkIfPresetHasUniqueKey(
+                                              presetKey: key)) return;
+
+                                          navigateToPlayBreathingPage(
+                                              presetKey: key);
+                                        },
+                                        icon: Icon(
+                                            Icons.play_circle_outline_sharp,
+                                            color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),

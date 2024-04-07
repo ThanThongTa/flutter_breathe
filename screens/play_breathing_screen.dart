@@ -1,18 +1,28 @@
 // ignore_for_file: prefer_const_constructors
 
-import 'package:breathe/controller/preset_hive_controller.dart';
 import 'package:breathe/cubits/play_breathing_cubit.dart';
 import 'package:breathe/datamodels/preset.dart';
+import 'package:breathe/extensions/context_extensions.dart';
+import 'package:breathe/interfaces/presets_controller.dart';
 import 'package:breathe/mixins/styled_app_bar_mixin.dart';
 import 'package:breathe/viewmodels/play_breathing_data.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:get_it/get_it.dart';
 
 //TODO: Load selected Preset from Hive
 //TODO: Add Circle Animation
 //TODO: Start and Stop Animation
 //TODO: Finish Session, go back to Home
+
+//TODO: show texts for circle phases, if showText is true
+// maybe use flutter_animate with delay for texts, and then()
+// maybe use Timer with delay for texts
+// maybe animatedSwitch?
+// maybe ValueListener and ValueNotifier?
+//TODO: show Count inside of animated circle, if true
+// maybe create own animation widgets
 
 // auf dem PlayBreathingScreen wird das ausgewählte Preset als Animation
 // abgespielt. Der User kann die Animation stoppen und wieder fortsetzen.
@@ -31,15 +41,15 @@ class PlayBreathingScreen extends StatefulWidget with StyledAppBarMixin {
 
 class _PlayBreathingScreenState extends State<PlayBreathingScreen>
     with StyledAppBarMixin {
-  // Controller, um auf die HiveBox zuzugreifen
-  final PresetHiveController _presetHiveController = PresetHiveController();
-  var presetsBox = Hive.box(PresetHiveController.hiveBoxKey);
+  // Controller, um auf die Presets zuzugreifen
+  final PresetsController _presetsController = GetIt.I<PresetsController>();
+
   Preset? currentPreset; // null, wenn ein neues Preset erstellt wird
   List presets = [];
 
   @override
   void initState() {
-    _presetHiveController.initState();
+    _presetsController.initState();
 
     // falls kein Preset Key angegeben wurde, braucht auch kein Preset
     // geladen zu werden
@@ -49,42 +59,12 @@ class _PlayBreathingScreenState extends State<PlayBreathingScreen>
       return;
     }
 
-    // ansonsten lade das gewählte Preset aus der Hive Box
-    if (presetsBox.get(PresetHiveController.hiveBoxKey) == null) {
-      _presetHiveController.createInitialData();
-      _presetHiveController.updatePresetsInHive();
-      _presetHiveController.updateStartingPresetInHive();
-      _presetHiveController.loadPresetsFromHive();
-      _presetHiveController.loadStartingPresetFromHive();
+    presets = _presetsController.initPresets(widget.presetKey);
+    currentPreset =
+        presets.firstWhere((element) => element.key == widget.presetKey);
 
-      var temp = presetsBox.get(PresetHiveController.hiveBoxKey);
-      // falls die Box immer noch nicht geladen werden
-      // nimm einfach die Liste aus dem Controller
-      if (temp == null) {
-        presets = _presetHiveController.animationPresets;
-        currentPreset =
-            presets.firstWhere((element) => element.key == widget.presetKey);
-      } else {
-        // ansonsten nehme die Liste aus der Hive Box
-        presets = temp;
-        currentPreset =
-            temp.firstWhere((element) => element.key == widget.presetKey);
-      }
-    } else {
-      // falls die Hive Box geladen werden konnte
-      presets = presetsBox.get(PresetHiveController.hiveBoxKey);
-      if (presets.isEmpty) {
-        presets = _presetHiveController.animationPresets;
-      } else {
-        currentPreset =
-            presets.firstWhere((element) => element.key == widget.presetKey);
-      }
-    }
-
-    if (currentPreset != null) {
-      context
-          .read<PlayBreathingCubit>()
-          .setDataFromPreset(preset: currentPreset!);
+    if (currentPreset is Preset) {
+      context.playBreathingCubit.setDataFromPreset(preset: currentPreset!);
     }
 
     super.initState();

@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 
 part 'preset.g.dart';
 
+// Presets beschreiben die Konfiguration einer Kreis Animation
 @HiveType(typeId: 1)
 class Preset {
   @HiveField(0)

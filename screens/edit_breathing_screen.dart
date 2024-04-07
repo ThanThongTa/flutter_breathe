@@ -1,7 +1,9 @@
 // ignore_for_file: prefer_const_constructors
 
-import 'package:breathe/controller/preset_hive_controller.dart';
+import 'package:breathe/extensions/context_extensions.dart';
+import 'package:breathe/interfaces/presets_controller.dart';
 import 'package:breathe/cubits/edit_breathing_cubit.dart';
+import 'package:breathe/datamodels/circle_phase.dart';
 import 'package:breathe/datamodels/preset.dart';
 import 'package:breathe/pages/preset_list_page.dart';
 import 'package:breathe/viewmodels/edit_breathing_data.dart';
@@ -10,11 +12,10 @@ import 'package:breathe/widgets/labeled_checkbox_row.dart';
 import 'package:breathe/widgets/labelled_number_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:get_it/get_it.dart';
 
 // TODO: Beispiel-Animation hinzufügen, damit der User die Effekte seiner Auswahl direkt sehen kann
-// TODO: Formular hübscher machen
-// TODO: Recherche, ob und wie GetIt hier verwendet werden kann
+// TODO: Formular hübscher machen, Buttons/Switches anstatt Checkboxes, DropdownLists anstatt NumberPicker? Slider für Zahlen?
 // TODO: AlertDialog für Speichern hinzufügen
 
 // EditBreathingScreen ist die Seite, auf der man ein neues Breathing-Preset
@@ -31,15 +32,22 @@ class EditBreathingScreen extends StatefulWidget {
 
 class _EditBreathingScreenState extends State<EditBreathingScreen>
     with StyledAppBarMixin {
-  // Controller, um auf die HiveBox zuzugreifen
-  final PresetHiveController _presetHiveController = PresetHiveController();
-  var presetsBox = Hive.box(PresetHiveController.hiveBoxKey);
+  // Controller, um die Textfelder initial mit Text befüllen zu können
+  final PresetsController _presetsController = GetIt.I<PresetsController>();
+  late TextEditingController presetNameTextController = TextEditingController();
+  late TextEditingController growingTextController = TextEditingController();
+  late TextEditingController shrinkingTextController = TextEditingController();
+  late TextEditingController holdInPhaseTextController =
+      TextEditingController();
+  late TextEditingController holdOutPhaseTextController =
+      TextEditingController();
+
   Preset? currentPreset; // null, wenn ein neues Preset erstellt wird
   List presets = [];
 
   @override
   void initState() {
-    _presetHiveController.initState();
+    _presetsController.initState();
 
     // falls kein Preset Key angegeben wurde, braucht auch kein Preset
     // geladen zu werden
@@ -50,51 +58,37 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
     }
 
     // ansonsten lade das gewählte Preset aus der Hive Box
-    if (presetsBox.get(PresetHiveController.hiveBoxKey) == null) {
-      _presetHiveController.createInitialData();
-      _presetHiveController.updatePresetsInHive();
-      _presetHiveController.updateStartingPresetInHive();
-      _presetHiveController.loadPresetsFromHive();
-      _presetHiveController.loadStartingPresetFromHive();
+    presets = _presetsController.initPresets(widget.presetKey);
 
-      var temp = presetsBox.get(PresetHiveController.hiveBoxKey);
-      // falls die Box immer noch nicht geladen werden
-      // nimm einfach die Liste aus dem Controller
-      if (temp == null) {
-        presets = _presetHiveController.animationPresets;
-        currentPreset =
-            presets.firstWhere((element) => element.key == widget.presetKey);
-      } else {
-        // ansonsten nehme die Liste aus der Hive Box
-        presets = temp;
-        currentPreset =
-            temp.firstWhere((element) => element.key == widget.presetKey);
-      }
-    } else {
-      // falls die Hive Box geladen werden konnte
-      presets = presetsBox.get(PresetHiveController.hiveBoxKey);
-      if (presets.isEmpty) {
-        presets = _presetHiveController.animationPresets;
-      } else {
-        currentPreset =
-            presets.firstWhere((element) => element.key == widget.presetKey);
-      }
+    // das aktuelle Preset setzen auf das erste mit dem richtigen Key
+    currentPreset =
+        presets.firstWhere((element) => element.key == widget.presetKey);
+
+    // falls ein Preset mit diesem Key gefunden werden konnte
+    // aktualisiere den State und die angezeigten Eingabefelder
+    if (currentPreset is Preset) {
+      context.editBreathingCubit.setDataFromPreset(preset: currentPreset!);
     }
 
-    if (currentPreset != null) {
-      context
-          .read<EditBreathingCubit>()
-          .setDataFromPreset(preset: currentPreset!);
-    }
+    // setze die Initial-Texte für die Textfelder
+    presetNameTextController.text = currentPreset?.name ?? '';
+    growingTextController.text =
+        currentPreset?.texts?[CirclePhase.growing] ?? '';
+    holdInPhaseTextController.text =
+        currentPreset?.texts?[CirclePhase.holdIn] ?? '';
+    holdOutPhaseTextController.text =
+        currentPreset?.texts?[CirclePhase.holdOut] ?? '';
+    shrinkingTextController.text =
+        currentPreset?.texts?[CirclePhase.shrinking] ?? '';
 
     super.initState();
   }
 
   // ein neues Preset wird erstellt, wenn kein Key angegeben wurde
   void saveNewPreset() {
-    context.read<EditBreathingCubit>().removeUniqueKey();
+    context.editBreathingCubit.removeUniqueKey();
     var newKey = UniqueKey().toString();
-    context.read<EditBreathingCubit>().setUniqueKey(newKey);
+    context.editBreathingCubit.setUniqueKey(newKey);
     savePreset();
   }
 
@@ -103,16 +97,14 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
     // speichert das aktuelle Preset in der HiveBox
     // Verwendung von Cubits, um die Businesslogik von der Präsentation
     // zu trennen
-    context
-        .read<EditBreathingCubit>()
-        .savePreset(controller: _presetHiveController);
+    context.editBreathingCubit.savePreset(controller: _presetsController);
 
     // ruft die Update Funktion auf, um die Presets in die HiveBox zu speichern
-    _presetHiveController.updatePresetsInHive();
+    _presetsController.updatePresetsInHive();
 
     // gibt eine Erfolgsnachricht aus
-    ScaffoldMessenger.of(context)
-        .showSnackBar(snackBarWithSuccessfulSaveMessage);
+
+    context.showSnackBar(snackBarWithSuccessfulSaveMessage);
 
     // Navigiert dann zum PresetListScreen
     Navigator.push(
@@ -164,21 +156,14 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 // Hier beginnt das eigentliche Formular
                 children: [
-                  // nur für debug Zwecke wird der unique key angezeigt
+                  // Dr unique key wird nur für debug zwecke angezeigt
+                  // TODO: Nach der Debugphase diese Zeile entfernen
                   Text('Unique key of the preset is: ${state.key}'),
                   // Textfeld mit dem Namen des Presets
-                  // TextFormField(
-
-                  //   onChanged: (value) => context
-                  //       .read<EditBreathingCubit>()
-                  //       .setPresetNameText(value),
-                  // ),
                   TextField(
-                    controller:
-                        TextEditingController(text: state.presetNameText),
-                    onSubmitted: (value) => context
-                        .read<EditBreathingCubit>()
-                        .setPresetNameText(value),
+                    controller: presetNameTextController,
+                    onChanged: (value) =>
+                        context.editBreathingCubit.setPresetNameText(value),
                     decoration:
                         InputDecoration(labelText: 'Name of the preset'),
                   ),
@@ -188,56 +173,54 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                     label: "Show Texts in animation: ",
                     value: state.showTexts,
                     semanticLabel: "Show texts for breathing phases?",
-                    onChanged: (newValue) => context
-                        .read<EditBreathingCubit>()
-                        .toggleShowTexts(newValue),
+                    onChanged: (newValue) =>
+                        context.editBreathingCubit.toggleShowTexts(newValue),
+                    // Wenn ich GetIt verwende, kommt der Klick nicht mehr an
+                    // TODO: Recherche, warum das mit GetIt nicht funktioniert
+                    // Vielleicht brauchen wir doch Bloc anstatt Cubits
+                    // onChanged: (newValue) =>
+                    //     GetIt.I<EditBreathingCubit>().toggleShowTexts(newValue),
                   ),
                   // checkbox für showCount
                   LabeledCheckboxRow(
                     label: "Show Count in animation: ",
                     value: state.showCount,
                     semanticLabel: "Show count in animation?",
-                    onChanged: (newValue) => context
-                        .read<EditBreathingCubit>()
-                        .toggleShowCount(newValue),
+                    onChanged: (newValue) =>
+                        context.editBreathingCubit.toggleShowCount(newValue),
                   ),
                   // checkbox für skipHolds
                   LabeledCheckboxRow(
                     label: "Connected Breathing: ",
                     value: state.skipHolds,
                     semanticLabel: "Skip holds in animation?",
-                    onChanged: (newValue) => context
-                        .read<EditBreathingCubit>()
-                        .toggleSkipHolds(newValue),
+                    onChanged: (newValue) =>
+                        context.editBreathingCubit.toggleSkipHolds(newValue),
                   ),
                   // checkbox für isStart
                   LabeledCheckboxRow(
                     label: "Set as starting preset after save: ",
                     value: state.isStart,
                     semanticLabel: "Set as starting preset after save?",
-                    onChanged: (newValue) => context
-                        .read<EditBreathingCubit>()
-                        .toggleIsStart(newValue),
+                    onChanged: (newValue) =>
+                        context.editBreathingCubit.toggleIsStart(newValue),
                   ),
                   // checkbox für isFavorite
                   LabeledCheckboxRow(
                     label: "Set as favorite after save: ",
                     value: state.isFavorite,
                     semanticLabel: "Set as favorite after save?",
-                    onChanged: (newValue) => context
-                        .read<EditBreathingCubit>()
-                        .toggleIsFavorite(newValue),
+                    onChanged: (newValue) =>
+                        context.editBreathingCubit.toggleIsFavorite(newValue),
                   ),
                   // Textfeld mit dem Text für die Growing Phase
                   // nur sichtbar, wenn Texte angezeigt werden
                   Visibility(
                     visible: state.showTexts,
                     child: TextField(
-                      controller:
-                          TextEditingController(text: state.growingPhaseText),
-                      onSubmitted: (value) => context
-                          .read<EditBreathingCubit>()
-                          .setGrowingPhaseText(value),
+                      controller: growingTextController,
+                      onChanged: (value) =>
+                          context.editBreathingCubit.setGrowingPhaseText(value),
                       decoration: InputDecoration(
                           labelText: 'Text for the growing phase'),
                     ),
@@ -246,8 +229,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   LabelledNumberPicker(
                     label: "Duration of Growing Phase in Seconds: ",
                     value: state.growingPhaseDurationInSeconds,
-                    onChanged: (value) => context
-                        .read<EditBreathingCubit>()
+                    onChanged: (value) => context.editBreathingCubit
                         .setGrowingPhaseDurationInSeconds(value),
                   ),
                   // Textfeld mit dem Text für die Hold In Phase
@@ -256,11 +238,9 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   Visibility(
                     visible: state.showTexts && state.skipHolds == false,
                     child: TextField(
-                      controller:
-                          TextEditingController(text: state.holdInPhaseText),
-                      onSubmitted: (value) => context
-                          .read<EditBreathingCubit>()
-                          .setHoldInPhaseText(value),
+                      controller: holdInPhaseTextController,
+                      onChanged: (value) =>
+                          context.editBreathingCubit.setHoldInPhaseText(value),
                       decoration: InputDecoration(
                           labelText: 'Text for the hold In phase'),
                     ),
@@ -272,8 +252,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                     child: LabelledNumberPicker(
                       label: "Duration of Hold in Phase in Seconds: ",
                       value: state.holdInPhaseDurationInSeconds,
-                      onChanged: (value) => context
-                          .read<EditBreathingCubit>()
+                      onChanged: (value) => context.editBreathingCubit
                           .setHoldInPhaseDurationInSeconds(value),
                     ),
                   ),
@@ -282,10 +261,8 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   Visibility(
                     visible: state.showTexts,
                     child: TextField(
-                      controller:
-                          TextEditingController(text: state.shrinkingPhaseText),
-                      onSubmitted: (value) => context
-                          .read<EditBreathingCubit>()
+                      controller: shrinkingTextController,
+                      onChanged: (value) => context.editBreathingCubit
                           .setShrinkingPhaseText(value),
                       decoration: InputDecoration(
                           labelText: 'Text for the Shrinking phase'),
@@ -295,8 +272,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   LabelledNumberPicker(
                     label: "Duration of Shrinking Phase in Seconds: ",
                     value: state.shrinkingPhaseDurationInSeconds,
-                    onChanged: (value) => context
-                        .read<EditBreathingCubit>()
+                    onChanged: (value) => context.editBreathingCubit
                         .setShrinkingPhaseDurationInSeconds(value),
                   ),
                   // Textfeld mit dem Text für die Hold Out Phase
@@ -305,11 +281,9 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   Visibility(
                     visible: state.showTexts && state.skipHolds == false,
                     child: TextField(
-                      controller:
-                          TextEditingController(text: state.holdOutPhaseText),
-                      onSubmitted: (value) => context
-                          .read<EditBreathingCubit>()
-                          .setHoldOutPhaseText(value),
+                      controller: holdOutPhaseTextController,
+                      onChanged: (value) =>
+                          context.editBreathingCubit.setHoldOutPhaseText(value),
                       decoration: InputDecoration(
                           labelText: 'Text for the hold out phase'),
                     ),
@@ -321,8 +295,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                     child: LabelledNumberPicker(
                       label: "Duration of Hold out Phase in Seconds: ",
                       value: state.holdOutPhaseDurationInSeconds,
-                      onChanged: (value) => context
-                          .read<EditBreathingCubit>()
+                      onChanged: (value) => context.editBreathingCubit
                           .setHoldOutPhaseDurationInSeconds(value),
                     ),
                   ),
@@ -330,7 +303,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   ElevatedButton(
                     onPressed: () {
                       if (state.presetNameText.isEmpty) {
-                        ScaffoldMessenger.of(context)
+                        context
                             .showSnackBar(snackBarWithPresetNameErrorMessage);
                         return;
                       }
@@ -345,7 +318,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                   ElevatedButton(
                     onPressed: () {
                       if (state.presetNameText.isEmpty) {
-                        ScaffoldMessenger.of(context)
+                        context
                             .showSnackBar(snackBarWithPresetNameErrorMessage);
                         return;
                       }
@@ -358,7 +331,7 @@ class _EditBreathingScreenState extends State<EditBreathingScreen>
                     onPressed: () {
                       var newKey = UniqueKey().toString();
                       state.key = newKey;
-                      context.read<EditBreathingCubit>().setUniqueKey(newKey);
+                      context.editBreathingCubit.setUniqueKey(newKey);
                     },
                     child: Text('Generate new UniqueKey'),
                   ),
