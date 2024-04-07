@@ -1,5 +1,27 @@
 // ignore_for_file: prefer_const_constructors
 
+// in pubspec:
+//
+// dependencies:
+//  flutter:
+//    sdk: flutter
+//  sizer: ^2.0.15 # Sizer für Responsive Design
+//  hive: ^2.2.3
+//  hive_flutter: ^1.1.0 # Hive und HiveFlutter, um Daten zu speichern
+//  numberpicker: ^2.1.2 # ein etwas hübscherer Picker für Nummern
+//  bloc: ^8.1.0
+//  flutter_bloc: ^8.1.5 # Bloc und flutter_bloc, um die BusinessLogic von der Präsentation zu trennen
+//  get_it: ^7.6.8 # Service Locator, um mit Singletons zu arbeiten
+//  flutter_slidable: ^3.1.0 # Slidables für die Liste der Presets
+//  collection: ^1.18.0
+
+//  dev_dependencies:
+//  flutter_test:
+//    sdk: flutter
+//  flutter_lints: ^3.0.0
+//  build_runner: ^2.4.9
+//  hive_generator: ^2.0.1
+
 import 'package:breathe/interfaces/presets_controller.dart';
 import 'package:breathe/controller/preset_hive_controller.dart';
 import 'package:breathe/cubits/edit_breathing_cubit.dart';
